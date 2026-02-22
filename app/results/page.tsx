@@ -79,10 +79,10 @@ export default function ResultsPage() {
 
   const getRiskStyles = (risk: string) => {
     switch (risk) {
-      case 'Stable': return { color: 'text-emerald-400', border: 'border-emerald-400/30', bg: 'bg-emerald-400/10' };
-      case 'Mild': return { color: 'text-blue-400', border: 'border-blue-400/30', bg: 'bg-blue-400/10' };
-      case 'Concerning': return { color: 'text-amber-400', border: 'border-amber-400/30', bg: 'bg-amber-400/10' };
-      case 'High Risk': return { color: 'text-red-400', border: 'border-red-400/30', bg: 'bg-red-400/10' };
+      case 'No Concern': return { color: 'text-emerald-400', border: 'border-emerald-400/30', bg: 'bg-emerald-400/10' };
+      case 'Mild Risk': return { color: 'text-blue-400', border: 'border-blue-400/30', bg: 'bg-blue-400/10' };
+      case 'High Risk': return { color: 'text-amber-400', border: 'border-amber-400/30', bg: 'bg-amber-400/10' };
+      case 'Critical Risk': return { color: 'text-red-400', border: 'border-red-400/30', bg: 'bg-red-400/10' };
       default: return { color: 'text-primary', border: 'border-primary/30', bg: 'bg-primary/10' };
     }
   };

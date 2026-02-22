@@ -111,11 +111,11 @@ export function calculateCSI(
 /**
  * Get risk category based on CSI
  */
-export function getRiskCategory(csi: number): 'Stable' | 'Mild' | 'Concerning' | 'High Risk' {
-  if (csi >= 85) return 'Stable';
-  if (csi >= 70) return 'Mild';
-  if (csi >= 50) return 'Concerning';
-  return 'High Risk';
+export function getRiskCategory(csi: number): 'No Concern' | 'Mild Risk' | 'High Risk' | 'Critical Risk' {
+  if (csi >= 70) return 'No Concern';
+  if (csi >= 40) return 'Mild Risk';
+  if (csi >= 20) return 'High Risk';
+  return 'Critical Risk';
 }
 
 /**
@@ -123,13 +123,13 @@ export function getRiskCategory(csi: number): 'Stable' | 'Mild' | 'Concerning' |
  */
 export function getRiskColor(category: string): string {
   switch (category) {
-    case 'Stable':
+    case 'No Concern':
       return '#10b981'; // emerald-500
-    case 'Mild':
+    case 'Mild Risk':
       return '#3b82f6'; // blue-500
-    case 'Concerning':
-      return '#f59e0b'; // amber-500
     case 'High Risk':
+      return '#f59e0b'; // amber-500
+    case 'Critical Risk':
       return '#ef4444'; // red-500
     default:
       return '#6b7280'; // gray-500
