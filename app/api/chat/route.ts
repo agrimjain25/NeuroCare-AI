@@ -21,37 +21,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server configuration error: API Key missing." }, { status: 500 });
     }
 
-    // Use confirmed stable model version
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
-      systemInstruction: SYSTEM_INSTRUCTION
-    });
+    // List of models to try in order of preference
+    const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+    let lastError = null;
 
-    // Format history for the generateContent call
-    const contents = [
-      ...(history || []).map((msg: any) => ({
-        role: msg.role === 'model' ? 'model' : 'user',
-        parts: msg.parts
-      })),
-      { role: 'user', parts: [{ text: prompt }] }
-    ];
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ 
+          model: modelName,
+          systemInstruction: SYSTEM_INSTRUCTION
+        });
 
-    const result = await model.generateContent({
-      contents,
-      generationConfig: {
-        maxOutputTokens: 1024,
-        temperature: 0.7,
-      },
-    });
+        // Format history for the generateContent call
+        const contents = [
+          ...(history || []).map((msg: any) => ({
+            role: msg.role === 'model' ? 'model' : 'user',
+            parts: msg.parts
+          })),
+          { role: 'user', parts: [{ text: prompt }] }
+        ];
 
-    const response = await result.response;
-    const text = response.text();
+        const result = await model.generateContent({
+          contents,
+          generationConfig: {
+            maxOutputTokens: 1024,
+            temperature: 0.7,
+          },
+        });
 
-    if (!text) {
-      throw new Error("Empty response from AI model");
+        const response = await result.response;
+        const text = response.text();
+
+        if (text) {
+          return NextResponse.json({ text });
+        }
+      } catch (error: any) {
+        lastError = error;
+        // If it's a quota error (429), continue to next model
+        if (error.message?.includes("429") || error.message?.includes("quota")) {
+          console.warn(`Model ${modelName} quota exceeded, trying next model...`);
+          continue;
+        }
+        // If it's any other critical error, throw it
+        throw error;
+      }
     }
 
-    return NextResponse.json({ text });
+    throw lastError || new Error("All models failed to respond");
   } catch (error: any) {
     console.error('DETAILED Chat API Error:', error);
     

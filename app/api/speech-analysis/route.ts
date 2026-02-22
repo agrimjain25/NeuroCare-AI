@@ -52,43 +52,58 @@ export async function POST(request: NextRequest) {
       const buffer = await audioFile.arrayBuffer();
       const base64Audio = Buffer.from(buffer).toString('base64');
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+      let analysisData = null;
 
-      const prompt = `CRITICAL TASK: Analyze this reading assessment audio against the REFERENCE TEXT.
-      REFERENCE TEXT: "${readingText}"
+      for (const modelName of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
 
-      STRICT RULES:
-      1. TRANSCRIPTION: Transcribe the audio VERBATIM. 
-      2. ACCURACY: Calculate "wordMatchAccuracy" (0-100) as a strict percentage of the REFERENCE TEXT words correctly spoken. 
-      3. STABILITY: Calculate "stabilityScore" (0-100) based ONLY on the parts they actually spoke.
-      
-      Return ONLY a JSON object:
-      {
-        "transcript": "...",
-        "fillerCount": 0,
-        "wordMatchAccuracy": 0,
-        "stabilityScore": 0,
-        "wordsPerMinute": 0,
-        "pauseFrequency": 0.0
-      }`;
+          const prompt = `CRITICAL TASK: Analyze this reading assessment audio against the REFERENCE TEXT.
+          REFERENCE TEXT: "${readingText}"
 
-      const result = await model.generateContent([
-        prompt,
-        {
-          inlineData: {
-            data: base64Audio,
-            mimeType: "audio/webm"
+          STRICT RULES:
+          1. TRANSCRIPTION: Transcribe the audio VERBATIM. 
+          2. ACCURACY: Calculate "wordMatchAccuracy" (0-100) as a strict percentage of the REFERENCE TEXT words correctly spoken. 
+          3. STABILITY: Calculate "stabilityScore" (0-100) based ONLY on the parts they actually spoke.
+          
+          Return ONLY a JSON object:
+          {
+            "transcript": "...",
+            "fillerCount": 0,
+            "wordMatchAccuracy": 0,
+            "stabilityScore": 0,
+            "wordsPerMinute": 0,
+            "pauseFrequency": 0.0
+          }`;
+
+          const result = await model.generateContent([
+            prompt,
+            {
+              inlineData: {
+                data: base64Audio,
+                mimeType: "audio/webm"
+              }
+            }
+          ]);
+
+          const response = await result.response;
+          const textResponse = response.text();
+          const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+          
+          if (jsonMatch) {
+            analysisData = JSON.parse(jsonMatch[0]);
+            break; // Success!
           }
+        } catch (err: any) {
+          if (err.message?.includes("429") || err.message?.includes("quota")) {
+            continue; // Try next model
+          }
+          throw err;
         }
-      ]);
+      }
 
-      const response = await result.response;
-      const textResponse = response.text();
-      
-      const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const analysisData = JSON.parse(jsonMatch[0]);
-        
+      if (analysisData) {
         // Final strict sanity check: accuracy cannot exceed the ratio of words spoken
         const transcriptWords = (analysisData.transcript || "").split(/\s+/).filter(w => w.length > 0).length;
         const physicalLimit = (transcriptWords / refWordCount) * 100;
@@ -105,7 +120,7 @@ export async function POST(request: NextRequest) {
             wordCount: transcriptWords,
             wordMatchAccuracy: Math.round(calculatedMatchAcc)
           },
-          score: Math.round(calculatedMatchAcc), // Score is now primarily driven by literal accuracy
+          score: Math.round(calculatedMatchAcc),
         });
       }
     } catch (innerError) {
