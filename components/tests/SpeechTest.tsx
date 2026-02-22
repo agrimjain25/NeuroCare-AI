@@ -20,6 +20,7 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
   const recognitionRef = useRef<any>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
 
   // Load reading text on mount
   useEffect(() => {
@@ -119,6 +120,7 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
       }
 
       mediaRecorder.start();
+      recordingStartTimeRef.current = Date.now();
       setIsRecording(true);
       setStage('recording');
       setReadWords(new Set());
@@ -140,10 +142,13 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
 
   const handleRecordingComplete = async () => {
     try {
+      const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000; // seconds
       const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
       const formData = new FormData();
       formData.append('audio', audioBlob);
       formData.append('readingText', readingText);
+      formData.append('spokenWordCount', readWords.size.toString());
+      formData.append('recordingDuration', recordingDuration.toString());
 
       const response = await fetch('/api/speech-analysis', {
         method: 'POST',

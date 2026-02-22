@@ -9,6 +9,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const audioFile = formData.get('audio') as Blob;
     const readingText = (formData.get('readingText') as string) || '';
+    const spokenWordCount = parseInt(formData.get('spokenWordCount') as string) || 0;
+    const recordingDuration = parseFloat(formData.get('recordingDuration') as string) || 10;
 
     if (!audioFile) {
       return NextResponse.json({ error: 'No audio provided' }, { status: 400 });
@@ -17,30 +19,35 @@ export async function POST(request: NextRequest) {
     const refWordCount = readingText.split(/\s+/).filter(w => w.length > 0).length || 50;
 
     // Default dynamic "Safe" fallback data (low score for short readings)
-    const getDynamicFallback = (transcriptText: string = "") => {
-      const words = transcriptText.split(/\s+/).filter(w => w.length > 0);
-      const count = words.length;
-      // If we have a transcript but it's very short compared to reference, score should be low
+    const getDynamicFallback = (count: number = 0, durationSec: number = 10) => {
+      // Use the provided spoken word count
       const matchRatio = Math.min(1, count / refWordCount);
       const accuracy = Math.round(matchRatio * 100);
       
+      // Calculate WPM based on duration
+      const wpm = durationSec > 0 ? Math.round((count / durationSec) * 60) : 0;
+      
+      // Calculate fluency based on speed relative to benchmark
+      const baselineWpm = 130;
+      const fluency = Math.min(100, Math.max(30, (wpm / (baselineWpm * 0.8)) * 100));
+
       return {
-        transcript: transcriptText || "Captured audio analysis.",
+        transcript: "Analysis based on vocal synchronization.",
         metrics: {
-          wordsPerMinute: transcriptText ? Math.round(count * 1.5) : 120,
-          pauseFrequency: 0.1,
+          wordsPerMinute: wpm,
+          pauseFrequency: Math.max(0.05, 0.3 - (matchRatio * 0.2)),
           silenceDetected: count < 2,
           fillerWords: 0,
-          fluencyStability: transcriptText ? 85 : 90,
-          wordCount: count || refWordCount,
-          wordMatchAccuracy: accuracy || 85
+          fluencyStability: Math.round(fluency),
+          wordCount: count,
+          wordMatchAccuracy: accuracy
         },
-        score: Math.max(75, Math.round(60 + (accuracy * 0.3))) // More generous baseline
+        score: Math.round((accuracy * 0.6) + (fluency * 0.4))
       };
     };
 
     if (!API_KEY) {
-      return NextResponse.json(getDynamicFallback());
+      return NextResponse.json(getDynamicFallback(spokenWordCount, recordingDuration));
     }
 
     try {
@@ -109,7 +116,7 @@ export async function POST(request: NextRequest) {
       console.error("Internal Gemini Error:", innerError);
     }
 
-    return NextResponse.json(getDynamicFallback());
+    return NextResponse.json(getDynamicFallback(spokenWordCount, recordingDuration));
 
   } catch (error: any) {
     console.error('Critical Speech analysis error:', error);
