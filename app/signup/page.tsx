@@ -134,7 +134,6 @@ export default function SignupPage() {
                     onChange={(e) => setAge(e.target.value)}
                     placeholder="65"
                     className="w-full h-12 pl-12 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-primary/50 rounded-xl"
-                    min="18"
                     required
                   />
                 </div>
