@@ -1,4 +1,10 @@
-const API_KEY = "AIzaSyBW1FDFwCGCR65TsLIAtW_QEOfJ0zQnGPU";
+require('dotenv').config({ path: '.env.local' });
+const API_KEY = process.env.GEMINI_API_KEY;
+
+if (!API_KEY) {
+  console.error("ERROR: GEMINI_API_KEY is not set in .env.local");
+  process.exit(1);
+}
 
 async function listModels() {
   console.log("Listing available Gemini models...");

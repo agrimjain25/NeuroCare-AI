@@ -1,4 +1,11 @@
-const API_KEY = "AIzaSyBW1FDFwCGCR65TsLIAtW_QEOfJ0zQnGPU";
+require('dotenv').config({ path: '.env.local' });
+const API_KEY = process.env.GEMINI_API_KEY;
+
+if (!API_KEY) {
+  console.error("ERROR: GEMINI_API_KEY is not set in .env.local");
+  process.exit(1);
+}
+
 const MODELS = [
   "gemini-pro",
   "gemini-1.5-flash-latest",

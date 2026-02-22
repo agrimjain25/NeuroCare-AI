@@ -33,7 +33,7 @@ export function Chatbot() {
     const userMessage = { role: 'user' as const, parts: [{ text: currentInput }] };
     
     // Save current history BEFORE updating state
-    const currentHistory = messages;
+    const currentHistory = [...messages];
     
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
@@ -42,39 +42,37 @@ export function Chatbot() {
     try {
       const activeModel = model || "gemini-flash-latest";
       
-      // Add a placeholder message for the bot
-      setMessages((prev) => [...prev, { role: 'model' as const, parts: [{ text: '' }] }]);
-
-      let firstChunk = true;
-      await streamChatResponse(activeModel, currentInput, currentHistory, (fullText) => {
-        if (firstChunk) {
-          setIsLoading(false);
-          firstChunk = false;
-        }
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastIndex = newMessages.length - 1;
-          if (newMessages[lastIndex].role === 'model') {
-            newMessages[lastIndex] = { ...newMessages[lastIndex], parts: [{ text: fullText }] };
-          }
-          return newMessages;
-        });
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          modelName: activeModel,
+          prompt: currentInput,
+          history: currentHistory
+        })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from assistant');
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setMessages((prev) => [
+        ...prev, 
+        { role: 'model' as const, parts: [{ text: data.text }] }
+      ]);
 
     } catch (error: any) {
-      setIsLoading(false);
       console.error('Chat error detail:', error);
-      setMessages((prev) => {
-        // Remove the empty placeholder if it exists
-        const newMessages = [...prev];
-        if (newMessages.length > 0 && newMessages[newMessages.length - 1].parts[0].text === '') {
-          newMessages.pop();
-        }
-        return [
-          ...newMessages, 
-          { role: 'model' as const, parts: [{ text: `Error: ${error.message || 'Check your internet connection or API key quota.'}` }] }
-        ];
-      });
+      setMessages((prev) => [
+        ...prev, 
+        { role: 'model' as const, parts: [{ text: `Error: ${error.message || 'Check your internet connection or API key quota.'}` }] }
+      ]);
     } finally {
       setIsLoading(false);
     }
