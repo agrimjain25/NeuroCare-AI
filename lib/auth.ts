@@ -59,7 +59,7 @@ export function signup(email: string, password: string, firstName: string, lastN
     return { success: false, error: 'Email already registered' };
   }
 
-  if (!email || !password || !firstName || !lastName || !age) {
+  if (!email || !password || !firstName || !lastName || age < 1) {
     return { success: false, error: 'Invalid input' };
   }
 

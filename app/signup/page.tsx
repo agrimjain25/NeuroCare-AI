@@ -29,8 +29,8 @@ export default function SignupPage() {
     setError('');
 
     const ageNum = parseInt(age, 10);
-    if (isNaN(ageNum)) {
-      setError('Please enter a valid age.');
+    if (isNaN(ageNum) || ageNum < 1) {
+      setError('Please enter a valid age (minimum 1).');
       return;
     }
 
@@ -134,6 +134,7 @@ export default function SignupPage() {
                     onChange={(e) => setAge(e.target.value)}
                     placeholder="65"
                     className="w-full h-12 pl-12 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-primary/50 rounded-xl"
+                    min="1"
                     required
                   />
                 </div>
