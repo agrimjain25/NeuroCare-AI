@@ -44,6 +44,8 @@ export default function ResultsPage() {
     const allComplete = isAllTestsCompleted();
     const history = getTestResults();
     setAllResults(history.reverse()); // Show newest first
+
+    if (!allComplete) {
       setIsLocked(true);
       setIsLoading(false);
       return;
