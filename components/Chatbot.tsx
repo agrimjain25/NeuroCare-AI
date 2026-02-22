@@ -40,7 +40,7 @@ export function Chatbot() {
     setIsLoading(true);
 
     try {
-      const activeModel = model || "gemini-1.5-flash";
+      const activeModel = model || "gemini-2.0-flash";
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -129,11 +129,11 @@ export function Chatbot() {
                 </div>
               </div>
             ))}
-            {isLoading && messages[messages.length - 1]?.parts[0].text === '' && (
+            {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white dark:bg-zinc-800 p-3 rounded-2xl rounded-bl-none flex items-center gap-2 text-black dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                <div className="bg-white p-3 rounded-2xl rounded-bl-none flex items-center gap-2 text-black border border-zinc-200 shadow-sm">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="font-medium">Thinking...</span>
+                  <span className="font-medium text-black">Assistant is typing...</span>
                 </div>
               </div>
             )}
