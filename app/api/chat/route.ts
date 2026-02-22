@@ -17,11 +17,14 @@ export async function POST(req: NextRequest) {
     const { modelName, prompt, history } = await req.json();
 
     if (!API_KEY) {
-      return NextResponse.json({ error: "API Key not configured on server" }, { status: 500 });
+      console.error("Chat API Error: GEMINI_API_KEY is not defined in environment variables.");
+      return NextResponse.json({ error: "API Key not configured on server. If deployed on Vercel, please add GEMINI_API_KEY to your Project Settings > Environment Variables." }, { status: 500 });
     }
 
+    // Use a more stable model version
+    const activeModelName = "gemini-1.5-flash";
     const model = genAI.getGenerativeModel({ 
-      model: modelName || "gemini-1.5-flash",
+      model: activeModelName,
       systemInstruction: SYSTEM_INSTRUCTION
     });
 

@@ -40,7 +40,7 @@ export function Chatbot() {
     setIsLoading(true);
 
     try {
-      const activeModel = model || "gemini-flash-latest";
+      const activeModel = model || "gemini-1.5-flash";
       
       const response = await fetch('/api/chat', {
         method: 'POST',

@@ -349,13 +349,6 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
             <p className="text-white/40 text-sm font-medium">Composite stability score across all vocal metrics</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <MiniMetric label="Tempo (WPM)" value={metrics.wordsPerMinute} icon={<Activity className="w-4 h-4" />} />
-            <MiniMetric label="Word Count" value={metrics.wordCount} icon={<FileText className="w-4 h-4" />} />
-            <MiniMetric label="Pause Frequency" value={`${(metrics.pauseFrequency * 100).toFixed(0)}%`} icon={<Clock className="w-4 h-4" />} />
-            <MiniMetric label="Fluency Index" value={`${Math.round(metrics.fluencyStability)}%`} icon={<Shield className="w-4 h-4" />} />
-          </div>
-
           <Button
             onClick={handleComplete}
             className="w-full btn-elegant h-16 text-xl rounded-2xl"
