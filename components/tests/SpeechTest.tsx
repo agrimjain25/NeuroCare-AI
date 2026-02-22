@@ -82,33 +82,33 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
 
         recognition.onresult = (event: any) => {
           const wordsInText = readingText.toLowerCase().split(/\s+/).map(w => w.replace(/[^\w]/g, ''));
-          let fullTranscript = '';
-          for (let i = 0; i < event.results.length; ++i) {
-            fullTranscript += event.results[i][0].transcript.toLowerCase() + ' ';
-          }
-
-          const transcriptWords = fullTranscript.split(/\s+/).filter(w => w.length > 0);
+          
+          // Get ONLY the latest result from the event to avoid re-processing old audio
+          const latestIndex = event.resultIndex;
+          const transcriptChunk = event.results[latestIndex][0].transcript.toLowerCase();
+          const transcriptWords = transcriptChunk.split(/\s+/).filter(w => w.length > 0);
           
           setReadWords(prev => {
             const next = new Set(prev);
-            let lastMatchedIndex = -1;
             
-            // Find the last index already matched to stay sequential
-            prev.forEach(idx => {
-              if (idx > lastMatchedIndex) lastMatchedIndex = idx;
-            });
+            // Find our current position (the word after the last one we highlighted)
+            let currentPos = 0;
+            if (prev.size > 0) {
+              currentPos = Math.max(...Array.from(prev)) + 1;
+            }
 
+            // For each word heard in the latest audio chunk
             transcriptWords.forEach(tw => {
-              // Only search for matches AFTER the last matched word to be sequential
-              for (let i = lastMatchedIndex + 1; i < wordsInText.length; i++) {
-                const wt = wordsInText[i];
-                if (tw === wt || (wt.length > 3 && tw.includes(wt))) {
+              // Search in a small window ahead (e.g., 5 words) to find a match
+              // This allows for small skips but maintains order
+              const searchWindow = 5;
+              for (let i = currentPos; i < Math.min(currentPos + searchWindow, wordsInText.length); i++) {
+                const targetWord = wordsInText[i];
+                if (tw === targetWord || (targetWord.length > 3 && tw.includes(targetWord))) {
                   next.add(i);
-                  lastMatchedIndex = i;
+                  currentPos = i + 1; // Move forward
                   break;
                 }
-                // If we've skipped too many words, stop trying to match this transcript word to avoid jumping ahead
-                if (i > lastMatchedIndex + 5) break; 
               }
             });
             return next;
