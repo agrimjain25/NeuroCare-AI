@@ -53,7 +53,8 @@ export function Chatbot() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from assistant');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Server error occurred');
       }
 
       const data = await response.json();
