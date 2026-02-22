@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Mic, Activity, FileText, Clock, Shield } from 'lucide-react';
+import { Mic, Activity, FileText, Clock, Shield, AlertCircle, RefreshCw, Smartphone } from 'lucide-react';
+import { useMicrophone } from '@/hooks/use-microphone';
 
 interface SpeechTestProps {
   onComplete: (score: number, metrics: any) => void;
@@ -17,10 +18,18 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
   const [speechScore, setSpeechScore] = useState(0);
   const [metrics, setMetrics] = useState<any>(null);
   const [realTimeMetrics, setRealTimeMetrics] = useState({ wpm: 0, wordCount: 0 });
+  
+  const { 
+    status: micStatus, 
+    error: micError, 
+    requestPermission: getMicPermission, 
+    stopStream: stopMicStream,
+    clearError: clearMicError
+  } = useMicrophone();
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<any>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
 
   // Load reading text on mount
@@ -32,9 +41,9 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
   useEffect(() => {
     return () => {
       if (recognitionRef.current) try { recognitionRef.current.stop(); } catch(e) {}
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      stopMicStream();
     };
-  }, []);
+  }, [stopMicStream]);
 
   const loadReadingText = async () => {
     try {
@@ -49,10 +58,11 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
   };
 
   const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+    // 1. Request microphone permission after user gesture
+    const stream = await getMicPermission();
+    if (!stream) return;
 
+    try {
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -66,16 +76,11 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
           await handleRecordingComplete();
         } catch (err) {
           console.error("Recording stop critical error:", err);
-          // Ultimate safety fallback
           setStage('complete');
-          setSpeechScore(85);
-          setMetrics({ wordsPerMinute: 125, pauseFrequency: 0.1, fillerWords: 0, fluencyStability: 92, wordCount: 80 });
+          setSpeechScore(0);
+          setMetrics({ wordsPerMinute: 0, pauseFrequency: 0, fillerWords: 0, fluencyStability: 0, wordCount: 0 });
         }
       };
-
-  const [realTimeMetrics, setRealTimeMetrics] = useState({ wpm: 0, wordCount: 0 });
-  
-  // ... existing code ...
 
       // Real-time speech recognition for word highlighting and metrics
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -87,42 +92,31 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
 
         recognition.onresult = (event: any) => {
           const wordsInText = readingText.toLowerCase().split(/\s+/).map(w => w.replace(/[^\w]/g, ''));
-          
-          // Get ONLY the latest result from the event to avoid re-processing old audio
           const latestIndex = event.resultIndex;
           const transcriptChunk = event.results[latestIndex][0].transcript.toLowerCase();
           const transcriptWords = transcriptChunk.split(/\s+/).filter(w => w.length > 0);
           
           setReadWords(prev => {
             const next = new Set(prev);
-            
-            // Find our current position (the word after the last one we highlighted)
             let currentPos = 0;
             if (prev.size > 0) {
               currentPos = Math.max(...Array.from(prev)) + 1;
             }
 
-            // For each word heard in the latest audio chunk
             transcriptWords.forEach(tw => {
-              // Search in a small window ahead (e.g., 5 words) to find a match
               const searchWindow = 5;
               for (let i = currentPos; i < Math.min(currentPos + searchWindow, wordsInText.length); i++) {
                 const targetWord = wordsInText[i];
                 if (tw === targetWord || (targetWord.length > 3 && tw.includes(targetWord))) {
                   next.add(i);
-                  currentPos = i + 1; // Move forward
+                  currentPos = i + 1;
                   break;
                 }
               }
             });
             
-            // Update real-time metrics inside the callback to use the latest 'next' Set
             const durationSec = (Date.now() - recordingStartTimeRef.current) / 1000;
             const currentWPM = durationSec > 0 ? Math.round((next.size / durationSec) * 60) : 0;
-            
-            // We use a functional update here, but we need to set it outside the setReadWords callback 
-            // to avoid side effects or state sync issues, or we can just do it here.
-            // React state updates are batched, so this is fine.
             setRealTimeMetrics({
               wpm: currentWPM,
               wordCount: next.size
@@ -141,25 +135,25 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
       setIsRecording(true);
       setStage('recording');
       setReadWords(new Set());
+      setRealTimeMetrics({ wpm: 0, wordCount: 0 });
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('Unable to access microphone.');
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       if (recognitionRef.current) try { recognitionRef.current.stop(); } catch(e) {}
       setIsRecording(false);
       setStage('processing');
-      if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+      stopMicStream();
     }
-  };
+  }, [isRecording, stopMicStream]);
 
   const handleRecordingComplete = async () => {
     try {
-      const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000; // seconds
+      const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
       const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
       const formData = new FormData();
       formData.append('audio', audioBlob);
@@ -175,19 +169,14 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
       const result = await response.json();
       
       if (!response.ok || !result.metrics) {
-        console.warn('API Analysis failed or returned invalid data, using baseline');
-        setSpeechScore(result.score || 89);
-        setMetrics(result.metrics || { wordsPerMinute: 130, pauseFrequency: 0.1, fillerWords: 1, fluencyStability: 90, wordCount: 85 });
+        setStage('complete');
       } else {
         setSpeechScore(result.score);
         setMetrics(result.metrics);
+        setStage('complete');
       }
-      setStage('complete');
     } catch (error) {
       console.error('Error in speech analysis process:', error);
-      // Standardized fallback
-      setSpeechScore(85);
-      setMetrics({ wordsPerMinute: 125, pauseFrequency: 0.1, fillerWords: 0, fluencyStability: 92, wordCount: 80 });
       setStage('complete');
     }
   };
@@ -207,6 +196,42 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
 
       {(stage === 'ready' || stage === 'recording' || stage === 'processing') && (
         <div className="space-y-8">
+          {/* MicroPhone Error Handling UI */}
+          {micStatus === 'error' && (
+            <div className="glass-card p-6 border-destructive/30 bg-destructive/10 rounded-2xl animate-in zoom-in-95 duration-200">
+              <div className="flex gap-4 items-start">
+                <div className="w-10 h-10 rounded-xl bg-destructive/20 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-6 h-6 text-destructive" />
+                </div>
+                <div className="space-y-3">
+                  <h4 className="font-bold text-white">Microphone Error</h4>
+                  <p className="text-sm text-white/70 leading-relaxed">{micError}</p>
+                  
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button 
+                      onClick={startRecording}
+                      variant="outline" 
+                      className="border-white/10 hover:bg-white/5 h-10 px-4 rounded-xl text-xs gap-2"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Try Again
+                    </Button>
+                    
+                    <a 
+                      href="https://support.google.com/chrome/answer/2693767?hl=en&co=GENIE.Platform%3DAndroid"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-xs text-white/40 hover:text-white transition-colors"
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      Mobile Instructions
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="glass-card p-10 rounded-[2.5rem] relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-3xl pointer-events-none" />
             
@@ -230,10 +255,20 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
             {stage === 'ready' && (
               <Button
                 onClick={startRecording}
+                disabled={micStatus === 'requesting'}
                 className="btn-elegant h-20 px-12 text-xl rounded-2xl group relative"
               >
-                <Mic className="w-6 h-6 mr-3 group-hover:scale-125 transition-transform" />
-                Initialize Audio Capture
+                {micStatus === 'requesting' ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <span>Accessing Mic...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Mic className="w-6 h-6 mr-3 group-hover:scale-125 transition-transform" />
+                    Initialize Audio Capture
+                  </>
+                )}
               </Button>
             )}
 
