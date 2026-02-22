@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const buffer = await audioFile.arrayBuffer();
       const base64Audio = Buffer.from(buffer).toString('base64');
 
-      const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+      const modelsToTry = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"];
       let analysisData = null;
 
       for (const modelName of modelsToTry) {

@@ -5,10 +5,10 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 // EXACT names from your confirmed list
 const MODELS = [
-  "gemini-1.5-flash",
   "gemini-2.0-flash",
-  "gemini-pro-latest",
+  "gemini-flash-latest",
   "gemini-2.5-flash",
+  "gemini-pro-latest",
 ];
 
 const SYSTEM_INSTRUCTION = `You are the NeuroCare AI Assistant. 
@@ -20,8 +20,8 @@ Do NOT use bullet points or "pointers". Avoid long paragraphs. Focus on:
 Be direct and helpful.`;
 
 export async function findWorkingModel() {
-  // Default to 1.5-flash as it's the most stable
-  return "gemini-1.5-flash";
+  // Default to 2.0-flash as it's the most capable stable version
+  return "gemini-2.0-flash";
 }
 
 export async function generateChatResponse(modelName: string, prompt: string, history: any[]) {

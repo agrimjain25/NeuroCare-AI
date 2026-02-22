@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server configuration error: API Key missing." }, { status: 500 });
     }
 
-    // List of models to try in order of preference
-    const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+    // List of models to try in order of preference (Confirmed working names)
+    const modelsToTry = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
