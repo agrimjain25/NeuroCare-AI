@@ -22,6 +22,7 @@ import {
   Zap,
   Target,
   Users,
+  Clock,
   X
 } from 'lucide-react';
 
