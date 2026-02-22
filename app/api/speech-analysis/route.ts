@@ -67,17 +67,15 @@ export async function POST(request: NextRequest) {
       const buffer = await audioFile.arrayBuffer();
       const base64Audio = Buffer.from(buffer).toString('base64');
 
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const prompt = `CRITICAL TASK: Analyze this reading assessment audio against the REFERENCE TEXT.
       REFERENCE TEXT: "${readingText}"
 
       STRICT RULES:
-      1. TRANSCRIPTION: Transcribe the audio VERBATIM. If the speaker stops early, do NOT complete the sentences. If they say something unrelated, transcribe that exactly. Do NOT "fix" or "fill in" the text based on the reference.
+      1. TRANSCRIPTION: Transcribe the audio VERBATIM. 
       2. ACCURACY: Calculate "wordMatchAccuracy" (0-100) as a strict percentage of the REFERENCE TEXT words correctly spoken. 
-         Example: If reference has 100 words and speaker only says 10 correct words, accuracy is EXACTLY 10%.
-      3. HALLUCINATION WARNING: Do not assume the speaker read the whole text if they didn't. Be brutally honest.
-      4. STABILITY: Calculate "stabilityScore" (0-100) based ONLY on the parts they actually spoke.
+      3. STABILITY: Calculate "stabilityScore" (0-100) based ONLY on the parts they actually spoke.
       
       Return ONLY a JSON object:
       {

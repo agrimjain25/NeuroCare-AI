@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const model = genAI.getGenerativeModel({ 
-      model: modelName || "gemini-flash-latest",
+      model: modelName || "gemini-1.5-flash",
       systemInstruction: SYSTEM_INSTRUCTION
     });
 

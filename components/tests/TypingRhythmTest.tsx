@@ -8,17 +8,38 @@ interface TypingRhythmTestProps {
   onComplete: (score: number) => void;
 }
 
-const TEST_SENTENCE = 'The quick brown fox jumps over the lazy dog';
+const TYPING_SENTENCES = [
+  'The quick brown fox jumps over the lazy dog',
+  'A clear conscience is a soft pillow for the mind',
+  'Success is not final failure is not fatal',
+  'Practice makes perfect when consistency is key',
+  'The rhythm of life is a powerful symphony',
+  'Innovation distinguishes between a leader and a follower',
+  'Believe you can and you are halfway there',
+  'Knowledge is power but character is more important',
+  'Patience and persistence are the keys to success',
+  'Digital health monitoring improves patient outcomes'
+];
 
 export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) {
   const [stage, setStage] = useState<'ready' | 'testing' | 'complete'>('ready');
+  const [testSentence, setTestSentence] = useState(TYPING_SENTENCES[0]);
   const [typed, setTyped] = useState('');
   const [keystrokeTimes, setKeystrokeTimes] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const startTimeRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    // Select a random sentence on mount
+    const randomIndex = Math.floor(Math.random() * TYPING_SENTENCES.length);
+    setTestSentence(TYPING_SENTENCES[randomIndex]);
+  }, []);
+
   const startTest = () => {
+    // Also select a random sentence when restarting/starting
+    const randomIndex = Math.floor(Math.random() * TYPING_SENTENCES.length);
+    setTestSentence(TYPING_SENTENCES[randomIndex]);
     setStage('testing');
     setTyped('');
     setKeystrokeTimes([]);
@@ -39,14 +60,14 @@ export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) 
     }
 
     // Check if test is complete
-    if (currentText.length === TEST_SENTENCE.length) {
-      completeTest();
+    if (currentText.length >= testSentence.length) {
+      completeTest(currentText);
     }
   };
 
-  const completeTest = () => {
+  const completeTest = (userInput: string) => {
     setStage('complete');
-    const calculatedScore = calculateScore(keystrokeTimes, typed);
+    const calculatedScore = calculateScore(keystrokeTimes, userInput);
     setScore(calculatedScore);
   };
 
@@ -69,16 +90,17 @@ export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) 
 
     // Accuracy score
     let correctChars = 0;
-    for (let i = 0; i < Math.min(userInput.length, TEST_SENTENCE.length); i++) {
-      if (userInput[i] === TEST_SENTENCE[i]) correctChars++;
+    const minLength = Math.min(userInput.length, testSentence.length);
+    for (let i = 0; i < minLength; i++) {
+      if (userInput[i] === testSentence[i]) correctChars++;
     }
-    const accuracy = (correctChars / TEST_SENTENCE.length) * 100;
+    const accuracy = (correctChars / testSentence.length) * 100;
 
     // Speed score (words per minute)
     const totalTime = times[times.length - 1] - times[0];
-    const wordsTyped = TEST_SENTENCE.split(' ').length;
-    const wpm = (wordsTyped / (totalTime / 60000)) * 100; // Normalize for scale
-    const speedScore = Math.min(100, Math.max(0, wpm / 5));
+    const wordsTyped = testSentence.split(' ').length;
+    const wpm = (wordsTyped / (totalTime / 60000)); 
+    const speedScore = Math.min(100, Math.max(0, wpm * 2)); // Normalize
 
     // Combine scores
     const finalScore = (consistency * 0.4 + accuracy * 0.4 + speedScore * 0.2);
@@ -99,7 +121,7 @@ export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) 
             
             <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
               <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-3">Reference String</p>
-              <p className="text-xl font-bold text-white tracking-tight leading-relaxed">{TEST_SENTENCE}</p>
+              <p className="text-xl font-bold text-white tracking-tight leading-relaxed">{testSentence}</p>
             </div>
 
             <Button
@@ -116,9 +138,9 @@ export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) 
         <div className="glass-card p-10 space-y-8 rounded-[2.5rem]">
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 p-6 rounded-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 h-1 bg-secondary transition-all duration-300" style={{ width: `${(typed.length / TEST_SENTENCE.length) * 100}%` }} />
+              <div className="absolute top-0 left-0 h-1 bg-secondary transition-all duration-300" style={{ width: `${(typed.length / testSentence.length) * 100}%` }} />
               <p className="text-xl font-bold text-white/30 tracking-tight leading-relaxed select-none">
-                {TEST_SENTENCE.split('').map((char, i) => (
+                {testSentence.split('').map((char, i) => (
                   <span key={i} className={i < typed.length ? (typed[i] === char ? 'text-secondary' : 'text-destructive') : ''}>
                     {char}
                   </span>
@@ -129,7 +151,7 @@ export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) 
             <div className="space-y-3">
               <div className="flex justify-between items-end px-1">
                 <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Input Stream</p>
-                <p className="text-xs font-bold text-white/20">{typed.length} / {TEST_SENTENCE.length}</p>
+                <p className="text-xs font-bold text-white/20">{typed.length} / {testSentence.length}</p>
               </div>
               <input
                 ref={inputRef}
@@ -162,7 +184,7 @@ export default function TypingRhythmTest({ onComplete }: TypingRhythmTestProps) 
             <div className="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-1">
               <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Accuracy</p>
               <p className="text-2xl font-black text-white">
-                {Math.round((typed.split('').filter((c, i) => c === TEST_SENTENCE[i]).length / TEST_SENTENCE.length) * 100)}%
+                {Math.round((typed.split('').filter((c, i) => c === testSentence[i]).length / testSentence.length) * 100)}%
               </p>
             </div>
             <div className="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-1">
