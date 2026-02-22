@@ -259,11 +259,7 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
               {readingText.split(/\s+/).map((word, idx) => (
                 <span
                   key={idx}
-                  className={`text-2xl md:text-3xl font-bold tracking-tight transition-all duration-300 ${
-                    readWords.has(idx) 
-                      ? 'text-accent drop-shadow-[0_0_8px_oklch(var(--accent)/0.5)] scale-110' 
-                      : 'text-white/20'
-                  }`}
+                  className="text-2xl md:text-3xl font-bold tracking-tight text-white/80"
                 >
                   {word}
                 </span>

@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server configuration error: API Key missing." }, { status: 500 });
     }
 
-    // Use a very stable model identifier
+    // Use confirmed stable model version
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: SYSTEM_INSTRUCTION
     });
 

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const buffer = await audioFile.arrayBuffer();
       const base64Audio = Buffer.from(buffer).toString('base64');
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       const prompt = `CRITICAL TASK: Analyze this reading assessment audio against the REFERENCE TEXT.
       REFERENCE TEXT: "${readingText}"
