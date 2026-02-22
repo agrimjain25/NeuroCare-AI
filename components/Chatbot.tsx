@@ -133,7 +133,7 @@ export function Chatbot() {
               <div className="flex justify-start">
                 <div className="bg-white p-3 rounded-2xl rounded-bl-none flex items-center gap-2 text-black border border-zinc-200 shadow-sm">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="font-medium text-black">Assistant is typing...</span>
+                  <span className="font-medium text-black">Typing...</span>
                 </div>
               </div>
             )}
