@@ -34,6 +34,7 @@ export default function ResultsPage() {
   const [weakestDomain, setWeakestDomain] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showCareMap, setShowCareMap] = useState(false);
+  const [allResults, setAllResults] = useState<any[]>([]);
 
   useEffect(() => {
     checkResults();
@@ -41,7 +42,8 @@ export default function ResultsPage() {
 
   const checkResults = () => {
     const allComplete = isAllTestsCompleted();
-    if (!allComplete) {
+    const history = getTestResults();
+    setAllResults(history.reverse()); // Show newest first
       setIsLocked(true);
       setIsLoading(false);
       return;
@@ -222,6 +224,45 @@ Detailed Domain Analysis:
           <MetricCard title="Speech Stability" score={scores.speech} icon={<Mic className="w-5 h-5 text-accent" />} label="Acoustic Rhythms" />
           <MetricCard title="Motor Sync" score={scores.behavior} icon={<Activity className="w-5 h-5 text-secondary" />} label="Temporal Consistency" />
         </div>
+
+        {/* Assessment History Section */}
+        {allResults.length > 0 && (
+          <div className="glass-card p-10 rounded-[2.5rem] space-y-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <Clock className="w-6 h-6 text-primary" />
+                Assessment History
+              </h3>
+              <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{allResults.length} Sessions Logged</span>
+            </div>
+            
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+              {allResults.map((res, idx) => (
+                <div key={idx} className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      res.testType === 'cognitive' ? 'bg-primary/20 text-primary' :
+                      res.testType === 'speech' ? 'bg-accent/20 text-accent' :
+                      'bg-secondary/20 text-secondary'
+                    }`}>
+                      {res.testType === 'cognitive' ? <Brain className="w-5 h-5" /> :
+                       res.testType === 'speech' ? <Mic className="w-5 h-5" /> :
+                       <Activity className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-white capitalize">{res.testType} Assessment</p>
+                      <p className="text-xs text-white/30">{new Date(res.completedAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-black text-white group-hover:text-gradient">{res.score}</span>
+                    <span className="text-[10px] block font-bold text-white/20 uppercase">Score</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Insights & Next Steps */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
