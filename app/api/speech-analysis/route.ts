@@ -47,17 +47,17 @@ export async function POST(request: NextRequest) {
       const buffer = await audioFile.arrayBuffer();
       const base64Audio = Buffer.from(buffer).toString('base64');
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-      const prompt = `Analyze this reading assessment audio against the REFERENCE TEXT.
+      const prompt = `CRITICAL TASK: Analyze this reading assessment audio against the REFERENCE TEXT.
       REFERENCE TEXT: "${readingText}"
 
-      Tasks:
-      1. Transcribe the audio exactly.
-      2. Calculate "wordMatchAccuracy" (0-100): How many words from the REFERENCE TEXT were actually read correctly? If they only read a few words, this MUST be very low.
-      3. Calculate "stabilityScore" (0-100) based on clarity and pacing.
-      4. Count filler words (um, uh, like).
-      5. Estimate Words Per Minute (WPM).
+      STRICT RULES:
+      1. TRANSCRIPTION: Transcribe the audio VERBATIM. If the speaker stops early, do NOT complete the sentences. If they say something unrelated, transcribe that exactly. Do NOT "fix" or "fill in" the text based on the reference.
+      2. ACCURACY: Calculate "wordMatchAccuracy" (0-100) as a strict percentage of the REFERENCE TEXT words correctly spoken. 
+         Example: If reference has 100 words and speaker only says 10 correct words, accuracy is EXACTLY 10%.
+      3. HALLUCINATION WARNING: Do not assume the speaker read the whole text if they didn't. Be brutally honest.
+      4. STABILITY: Calculate "stabilityScore" (0-100) based ONLY on the parts they actually spoke.
       
       Return ONLY a JSON object:
       {
@@ -86,23 +86,23 @@ export async function POST(request: NextRequest) {
       if (jsonMatch) {
         const analysisData = JSON.parse(jsonMatch[0]);
         
-        // Final sanity check on accuracy
-        const transcriptWords = (analysisData.transcript || "").split(/\s+/).length;
-        // If Gemini is hallucinating a high accuracy for a short transcript, we override it
-        const calculatedMatchAcc = Math.min(analysisData.wordMatchAccuracy, (transcriptWords / refWordCount) * 110);
+        // Final strict sanity check: accuracy cannot exceed the ratio of words spoken
+        const transcriptWords = (analysisData.transcript || "").split(/\s+/).filter(w => w.length > 0).length;
+        const physicalLimit = (transcriptWords / refWordCount) * 100;
+        const calculatedMatchAcc = Math.min(analysisData.wordMatchAccuracy, physicalLimit);
 
         return NextResponse.json({
           transcript: analysisData.transcript,
           metrics: {
-            wordsPerMinute: analysisData.wordsPerMinute || 130,
-            pauseFrequency: analysisData.pauseFrequency || 0.1,
+            wordsPerMinute: analysisData.wordsPerMinute || 0,
+            pauseFrequency: analysisData.pauseFrequency || 0,
             silenceDetected: transcriptWords < 5,
             fillerWords: analysisData.fillerCount || 0,
-            fluencyStability: analysisData.stabilityScore || 85,
+            fluencyStability: analysisData.stabilityScore || 0,
             wordCount: transcriptWords,
             wordMatchAccuracy: Math.round(calculatedMatchAcc)
           },
-          score: Math.round((Math.min(100, calculatedMatchAcc) * 0.7) + ((analysisData.stabilityScore || 85) * 0.3)),
+          score: Math.round(calculatedMatchAcc), // Score is now primarily driven by literal accuracy
         });
       }
     } catch (innerError) {

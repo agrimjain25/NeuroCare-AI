@@ -104,6 +104,49 @@ export function login(email: string, password: string): { success: boolean; erro
 }
 
 /**
+ * Log in with Google (Simulated)
+ */
+export function loginWithGoogle(email: string, name: string): { success: boolean; user: UserProfile } {
+  const users = getAllUsers();
+  let user = users.find(u => u.email === email);
+
+  if (!user) {
+    // Create a new user for Google login if they don't exist
+    user = {
+      id: Math.random().toString(36).substring(7),
+      email,
+      name,
+      age: 25, // Default age
+      passwordHash: 'google-auth', // Placeholder
+      createdAt: new Date().toISOString(),
+    };
+    saveUserToRegistry(user);
+  }
+
+  const { passwordHash: _, ...userProfile } = user;
+  setStorageUser(userProfile);
+  
+  return { success: true, user: userProfile };
+}
+
+/**
+ * Reset password (Simulated)
+ */
+export function resetPassword(email: string, newPassword: string): { success: boolean; error?: string } {
+  const users = getAllUsers();
+  const user = users.find(u => u.email === email);
+
+  if (!user) {
+    return { success: false, error: 'User not found' };
+  }
+
+  user.passwordHash = hashPassword(newPassword);
+  saveUserToRegistry(user);
+  
+  return { success: true };
+}
+
+/**
  * Log out current user
  */
 export function logout(): void {

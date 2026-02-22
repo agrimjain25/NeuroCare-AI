@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// EXACT names from your list-models test
+// EXACT names from your confirmed list
 const MODELS = [
   "gemini-flash-latest",
   "gemini-2.0-flash",
@@ -12,8 +12,8 @@ const MODELS = [
 ];
 
 const SYSTEM_INSTRUCTION = `You are the NeuroCare AI Assistant. 
-Keep your responses very brief and concise. Use bullet points for clarity. 
-Avoid long paragraphs. Focus on:
+Keep your responses very brief and concise. Reply directly using clear sentences and numbered lists for organization. 
+Do NOT use bullet points or "pointers". Avoid long paragraphs. Focus on:
 1. NeuroCare navigation.
 2. Screening process help.
 3. Quick technical guidance.
@@ -73,4 +73,31 @@ export async function generateChatResponse(modelName: string, prompt: string, hi
     }
     throw error;
   }
+}
+
+export async function streamChatResponse(modelName: string, prompt: string, history: any[], onChunk: (text: string) => void) {
+  const model = genAI.getGenerativeModel({ 
+    model: modelName,
+    systemInstruction: SYSTEM_INSTRUCTION
+  });
+
+  const chat = model.startChat({
+    history: history.map(msg => ({
+      role: msg.role === 'model' ? 'model' : 'user',
+      parts: msg.parts
+    })),
+    generationConfig: {
+      maxOutputTokens: 1024,
+      temperature: 0.7,
+    },
+  });
+
+  const result = await chat.sendMessageStream(prompt);
+  let fullText = "";
+  for await (const chunk of result.stream) {
+    const chunkText = chunk.text();
+    fullText += chunkText;
+    onChunk(fullText);
+  }
+  return fullText;
 }

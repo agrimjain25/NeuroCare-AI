@@ -1,4 +1,4 @@
-const API_KEY = "AIzaSyAgHe1ZJyo0q96q4D_HtR7KVQOFPhG5-YQ";
+const API_KEY = "AIzaSyBW1FDFwCGCR65TsLIAtW_QEOfJ0zQnGPU";
 const MODELS = [
   "gemini-pro",
   "gemini-1.5-flash-latest",

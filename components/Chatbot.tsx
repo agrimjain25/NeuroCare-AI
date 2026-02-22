@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { findWorkingModel, generateChatResponse } from '@/lib/gemini';
+import { findWorkingModel, generateChatResponse, streamChatResponse } from '@/lib/gemini';
 import { Bot, X, Send, Brain, MessageSquare, Loader2 } from 'lucide-react';
 
 export function Chatbot() {
@@ -40,22 +40,41 @@ export function Chatbot() {
     setIsLoading(true);
 
     try {
-      // Use the model initialized in useEffect, or fallback to "gemini-flash-latest"
       const activeModel = model || "gemini-flash-latest";
-      console.log("Sending message...", currentInput);
       
-      const response = await generateChatResponse(activeModel, currentInput, currentHistory);
-      
-      setMessages((prev) => [
-        ...prev, 
-        { role: 'model' as const, parts: [{ text: response }] }
-      ]);
+      // Add a placeholder message for the bot
+      setMessages((prev) => [...prev, { role: 'model' as const, parts: [{ text: '' }] }]);
+
+      let firstChunk = true;
+      await streamChatResponse(activeModel, currentInput, currentHistory, (fullText) => {
+        if (firstChunk) {
+          setIsLoading(false);
+          firstChunk = false;
+        }
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          const lastIndex = newMessages.length - 1;
+          if (newMessages[lastIndex].role === 'model') {
+            newMessages[lastIndex] = { ...newMessages[lastIndex], parts: [{ text: fullText }] };
+          }
+          return newMessages;
+        });
+      });
+
     } catch (error: any) {
+      setIsLoading(false);
       console.error('Chat error detail:', error);
-      setMessages((prev) => [
-        ...prev, 
-        { role: 'model' as const, parts: [{ text: `Error: ${error.message || 'Check your internet connection or API key quota.'}` }] }
-      ]);
+      setMessages((prev) => {
+        // Remove the empty placeholder if it exists
+        const newMessages = [...prev];
+        if (newMessages.length > 0 && newMessages[newMessages.length - 1].parts[0].text === '') {
+          newMessages.pop();
+        }
+        return [
+          ...newMessages, 
+          { role: 'model' as const, parts: [{ text: `Error: ${error.message || 'Check your internet connection or API key quota.'}` }] }
+        ];
+      });
     } finally {
       setIsLoading(false);
     }
@@ -101,21 +120,21 @@ export function Chatbot() {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl whitespace-pre-wrap ${
+                  className={`max-w-[85%] p-3 rounded-2xl whitespace-pre-wrap text-sm md:text-base ${
                     msg.role === 'user'
-                      ? 'bg-zinc-200 dark:bg-zinc-700 text-black dark:text-white rounded-br-none'
-                      : 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-bl-none shadow-sm'
+                      ? 'bg-blue-600 text-white rounded-br-none'
+                      : 'bg-white dark:bg-zinc-800 text-black dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-bl-none shadow-sm text-left'
                   }`}
                 >
                   {msg.parts[0].text}
                 </div>
               </div>
             ))}
-            {isLoading && (
+            {isLoading && messages[messages.length - 1]?.parts[0].text === '' && (
               <div className="flex justify-start">
-                <div className="bg-zinc-200 dark:bg-zinc-800 p-3 rounded-2xl rounded-bl-none flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Thinking...
+                <div className="bg-white dark:bg-zinc-800 p-3 rounded-2xl rounded-bl-none flex items-center gap-2 text-black dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="font-medium">Thinking...</span>
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-const API_KEY = "AIzaSyAgHe1ZJyo0q96q4D_HtR7KVQOFPhG5-YQ";
+const API_KEY = "AIzaSyBW1FDFwCGCR65TsLIAtW_QEOfJ0zQnGPU";
 
 async function listModels() {
   console.log("Listing available Gemini models...");
