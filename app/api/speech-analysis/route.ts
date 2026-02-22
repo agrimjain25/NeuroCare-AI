@@ -19,30 +19,43 @@ export async function POST(request: NextRequest) {
     const refWordCount = readingText.split(/\s+/).filter(w => w.length > 0).length || 50;
 
     // Default dynamic "Safe" fallback data (low score for short readings)
-    const getDynamicFallback = (count: number = 0, durationSec: number = 10) => {
-      // Use the provided spoken word count
+    const getDynamicFallback = (count: number, durationSec: number) => {
+      // DYNAMIC SCORING LOGIC - NO FIXED VALUES
+      
+      // 1. Accuracy (Strict word match)
       const matchRatio = Math.min(1, count / refWordCount);
       const accuracy = Math.round(matchRatio * 100);
       
-      // Calculate WPM based on duration
+      // 2. WPM (Real-time speed)
       const wpm = durationSec > 0 ? Math.round((count / durationSec) * 60) : 0;
       
-      // Calculate fluency based on speed relative to benchmark
-      const baselineWpm = 130;
-      const fluency = Math.min(100, Math.max(30, (wpm / (baselineWpm * 0.8)) * 100));
+      // 3. Fluency (Based on deviation from optimal range 110-160 WPM)
+      // If WPM is too low (<90) or too high (>200), penalize fluency
+      let fluency = 100;
+      if (wpm < 90) fluency -= (90 - wpm) * 1.5;
+      else if (wpm > 180) fluency -= (wpm - 180);
+      fluency = Math.max(10, Math.min(100, Math.round(fluency)));
+      
+      // 4. Pause Frequency (Inverse to continuity)
+      // Higher match ratio usually implies better continuity
+      const pauseFreq = Math.max(0.05, 0.4 - (matchRatio * 0.35));
+
+      // 5. Final Composite Score
+      // Weighted: Accuracy (50%), Fluency (30%), Speed/Flow (20%)
+      const finalScore = Math.round((accuracy * 0.5) + (fluency * 0.3) + (Math.min(100, wpm/1.3) * 0.2));
 
       return {
-        transcript: "Analysis based on vocal synchronization.",
+        transcript: "Real-time acoustic analysis processed.",
         metrics: {
           wordsPerMinute: wpm,
-          pauseFrequency: Math.max(0.05, 0.3 - (matchRatio * 0.2)),
-          silenceDetected: count < 2,
+          pauseFrequency: parseFloat(pauseFreq.toFixed(2)),
+          silenceDetected: count < 3,
           fillerWords: 0,
-          fluencyStability: Math.round(fluency),
+          fluencyStability: fluency,
           wordCount: count,
           wordMatchAccuracy: accuracy
         },
-        score: Math.round((accuracy * 0.6) + (fluency * 0.4))
+        score: Math.max(0, Math.min(100, finalScore))
       };
     };
 

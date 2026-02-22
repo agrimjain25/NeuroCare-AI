@@ -16,6 +16,7 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [speechScore, setSpeechScore] = useState(0);
   const [metrics, setMetrics] = useState<any>(null);
+  const [realTimeMetrics, setRealTimeMetrics] = useState({ wpm: 0, wordCount: 0 });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<any>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -72,7 +73,11 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
         }
       };
 
-      // Real-time speech recognition for word highlighting
+  const [realTimeMetrics, setRealTimeMetrics] = useState({ wpm: 0, wordCount: 0 });
+  
+  // ... existing code ...
+
+      // Real-time speech recognition for word highlighting and metrics
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
@@ -100,7 +105,6 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
             // For each word heard in the latest audio chunk
             transcriptWords.forEach(tw => {
               // Search in a small window ahead (e.g., 5 words) to find a match
-              // This allows for small skips but maintains order
               const searchWindow = 5;
               for (let i = currentPos; i < Math.min(currentPos + searchWindow, wordsInText.length); i++) {
                 const targetWord = wordsInText[i];
@@ -111,6 +115,19 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
                 }
               }
             });
+            
+            // Update real-time metrics inside the callback to use the latest 'next' Set
+            const durationSec = (Date.now() - recordingStartTimeRef.current) / 1000;
+            const currentWPM = durationSec > 0 ? Math.round((next.size / durationSec) * 60) : 0;
+            
+            // We use a functional update here, but we need to set it outside the setReadWords callback 
+            // to avoid side effects or state sync issues, or we can just do it here.
+            // React state updates are batched, so this is fine.
+            setRealTimeMetrics({
+              wpm: currentWPM,
+              wordCount: next.size
+            });
+
             return next;
           });
         };
@@ -230,6 +247,18 @@ export default function SpeechTest({ onComplete }: SpeechTestProps) {
                   </div>
                   <span className="text-accent font-black uppercase tracking-[0.2em] text-xs">Capturing...</span>
                 </div>
+                
+                <div className="flex justify-center gap-8 w-full">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{realTimeMetrics.wpm}</p>
+                    <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Current WPM</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{realTimeMetrics.wordCount}</p>
+                    <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Words Spoken</p>
+                  </div>
+                </div>
+
                 <Button
                   onClick={stopRecording}
                   className="w-full h-16 bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 rounded-2xl font-bold text-lg"
