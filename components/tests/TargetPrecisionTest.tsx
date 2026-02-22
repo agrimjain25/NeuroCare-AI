@@ -16,32 +16,22 @@ interface Target {
 export default function TargetPrecisionTest({ onComplete }: TargetPrecisionTestProps) {
   const [stage, setStage] = useState<'ready' | 'testing' | 'complete'>('ready');
   const [target, setTarget] = useState<Target>({ x: 50, y: 50 });
-  const [clicks, setClicks] = useState<{ distance: number; successful: boolean }[]>([]);
+  const [clicks, setClicks] = useState<{ distance: number; successful: boolean; timeTaken: number }[]>([]);
   const [targetCount, setTargetCount] = useState(0);
-  const [timeRemaining, setTimeRemaining] = useState(20);
+  const [startTime, setStartTime] = useState<number>(0);
+  const [lastTargetTime, setLastTargetTime] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [score, setScore] = useState(0);
 
-  useEffect(() => {
-    if (stage === 'testing' && timeRemaining > 0) {
-      timerRef.current = setTimeout(() => {
-        setTimeRemaining(prev => prev - 1);
-      }, 1000);
-    } else if (stage === 'testing' && timeRemaining === 0) {
-      completeTest();
-    }
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [stage, timeRemaining]);
+  const TOTAL_TARGETS = 10;
 
   const startTest = () => {
     setStage('testing');
     setClicks([]);
     setTargetCount(0);
-    setTimeRemaining(20);
+    const now = Date.now();
+    setStartTime(now);
+    setLastTargetTime(now);
     generateNewTarget();
   };
 
@@ -52,7 +42,11 @@ export default function TargetPrecisionTest({ onComplete }: TargetPrecisionTestP
   };
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (stage !== 'testing' || !containerRef.current) return;
+    if (stage !== 'testing' || !containerRef.current || targetCount >= TOTAL_TARGETS) return;
+
+    const now = Date.now();
+    const timeForThisTarget = now - lastTargetTime;
+    setLastTargetTime(now);
 
     const rect = containerRef.current.getBoundingClientRect();
     const clickX = ((e.clientX - rect.left) / rect.width) * 100;
@@ -64,34 +58,44 @@ export default function TargetPrecisionTest({ onComplete }: TargetPrecisionTestP
     // 5% radius is considered a hit
     const isSuccessful = distance < 5;
 
-    setClicks(prev => [...prev, { distance, successful: isSuccessful }]);
-    setTargetCount(prev => prev + 1);
+    const newClicks = [...clicks, { distance, successful: isSuccessful, timeTaken: timeForThisTarget }];
+    setClicks(newClicks);
+    
+    const newCount = targetCount + 1;
+    setTargetCount(newCount);
 
-    if (isSuccessful) {
+    if (newCount >= TOTAL_TARGETS) {
+      completeTest(newClicks);
+    } else {
       generateNewTarget();
     }
   };
 
-  const completeTest = () => {
+  const completeTest = (finalClicks: any[]) => {
     setStage('complete');
-    const calculatedScore = calculateScore(clicks);
+    const calculatedScore = calculateScore(finalClicks);
     setScore(calculatedScore);
   };
 
   const calculateScore = (clickData: any[]): number => {
-    if (clickData.length === 0) return 10;
+    if (clickData.length === 0) return 0;
 
     const successCount = clickData.filter(c => c.successful).length;
-    const successRate = (successCount / clickData.length) * 100;
+    const successRate = (successCount / clickData.length); // 0 to 1
 
     // Average distance from target (lower is better)
+    // Distance is 0-100. A perfect hit is 0-5.
     const avgDistance = clickData.reduce((sum, c) => sum + c.distance, 0) / clickData.length;
-    const distanceScore = Math.max(0, 100 - avgDistance * 5);
+    const distanceScore = Math.max(0, 1 - (avgDistance / 20)); // Normalized distance score
 
-    // Combine accuracy and efficiency
-    const score = (successRate * 0.7 + distanceScore * 0.3);
+    // Speed score (assume 1 second per target is excellent)
+    const avgTime = clickData.reduce((sum, c) => sum + c.timeTaken, 0) / clickData.length;
+    const speedScore = Math.max(0, 1 - (avgTime / 3000)); // 0 to 1, perfect if < 1s, 0 if > 3s
 
-    return Math.max(10, Math.round(score));
+    // Combine accuracy (50%), distance (30%), and speed (20%)
+    const finalScore = (successRate * 50) + (distanceScore * 30) + (speedScore * 20);
+
+    return Math.max(10, Math.min(100, Math.round(finalScore)));
   };
 
   return (
@@ -107,7 +111,7 @@ export default function TargetPrecisionTest({ onComplete }: TargetPrecisionTestP
             
             <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
               <p className="text-white/70 font-medium leading-relaxed">
-                Click the emerging neural nodes as rapidly and accurately as possible for 20 seconds.
+                Click the 10 neural nodes as they appear. Both speed and accuracy are evaluated.
               </p>
             </div>
 
@@ -124,17 +128,19 @@ export default function TargetPrecisionTest({ onComplete }: TargetPrecisionTestP
       {stage === 'testing' && (
         <div className="glass-card p-10 space-y-8 rounded-[2.5rem] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
-            <div className="h-full bg-secondary transition-all duration-1000 ease-linear" style={{ width: `${(timeRemaining / 20) * 100}%` }} />
+            <div className="h-full bg-secondary transition-all duration-300 ease-out" style={{ width: `${(targetCount / TOTAL_TARGETS) * 100}%` }} />
           </div>
 
           <div className="flex justify-between items-end relative z-10">
             <div className="space-y-1">
-              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Capture Window</p>
-              <p className="text-4xl font-black text-white tracking-tighter">{timeRemaining}s</p>
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Neural Nodes</p>
+              <p className="text-4xl font-black text-white tracking-tighter">{targetCount + 1} <span className="text-lg text-white/20">/ {TOTAL_TARGETS}</span></p>
             </div>
             <div className="text-right space-y-1">
-              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Nodes Neutralized</p>
-              <p className="text-xl font-bold text-secondary">{clicks.filter(c => c.successful).length} / {targetCount}</p>
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Accuracy</p>
+              <p className="text-xl font-bold text-secondary">
+                {targetCount > 0 ? Math.round((clicks.filter(c => c.successful).length / targetCount) * 100) : 100}%
+              </p>
             </div>
           </div>
 

@@ -29,8 +29,8 @@ export default function SignupPage() {
     setError('');
 
     const ageNum = parseInt(age, 10);
-    if (isNaN(ageNum) || ageNum < 18) {
-      setError('Age must be 18 or older for medical screening.');
+    if (isNaN(ageNum)) {
+      setError('Please enter a valid age.');
       return;
     }
 
